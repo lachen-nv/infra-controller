@@ -83,16 +83,20 @@ auth:
   # Option 1: Direct bearer token
   # token: eyJhbGciOi...
 
-  # Option 2: OIDC provider (e.g. Keycloak)
+  # Option 2: Auth script/token command
+  # token_command: /path/to/get-nico-token.sh
+
+  # Option 3: OIDC provider (e.g. Keycloak)
   oidc:
     token_url: http://localhost:8080/realms/nico-dev/protocol/openid-connect/token
     client_id: nico-api
     client_secret: nico-local-secret
 
-  # Option 3: NGC API key
+  # Option 4: NGC API key
   # api_key:
-  #   authn_url: https://authn.nvidia.com/token
   #   key: nvapi-xxxx
+  #   # authn_url is only required for legacy NGC keys (without nvapi- prefix)
+  #   # authn_url: https://authn.nvidia.com/token
 ```
 
 Flags and environment variables override config values:
@@ -102,6 +106,7 @@ Flags and environment variables override config values:
 | `--base-url` | `NICO_BASE_URL` | API base URL |
 | `--org` | `NICO_ORG` | Organization name |
 | `--token` | `NICO_TOKEN` | Bearer token |
+| `--token-command`, `--auth-script` | `NICO_TOKEN_COMMAND`, `NICO_AUTH_SCRIPT` | Shell command/script that prints a bearer token |
 | `--token-url` | `NICO_TOKEN_URL` | OIDC token endpoint URL |
 | `--keycloak-url` | `NICO_KEYCLOAK_URL` | Keycloak base URL (constructs token-url) |
 | `--keycloak-realm` | `NICO_KEYCLOAK_REALM` | Keycloak realm (default: `nico-dev`) |
@@ -120,11 +125,14 @@ nicocli --token-url https://auth.example.com/token login --username admin@exampl
 # NGC API key
 nicocli login --api-key nvapi-xxxx
 
+# Auth script/token command
+nicocli --auth-script /path/to/get-nico-token.sh login
+
 # Keycloak shorthand
 nicocli --keycloak-url http://localhost:8080 login --username admin@example.com
 ```
 
-Tokens are saved to `~/.nico/config.yaml` with auto-refresh for OIDC.
+Tokens are saved to the active config file (`~/.nico/config.yaml` by default, or the path selected with `--config` / the TUI config selector). OIDC is refreshed when possible; TUI mode reruns the configured auth method after `401 Unauthorized` API responses and retries safe read requests up to three times, logging each auth refresh/retry attempt.
 
 ## Usage
 
