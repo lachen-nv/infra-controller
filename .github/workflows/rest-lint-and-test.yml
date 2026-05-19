@@ -167,7 +167,7 @@ jobs:
       - name: Regenerate protobuf code
         run: |
           cd workflow-schema && buf generate
-          cd ../flow && buf generate
+          cd flow && buf generate
 
       - name: Check for uncommitted changes
         run: |
