@@ -5,7 +5,9 @@ name: NICo REST CI
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
+    branches:
+      - 'pull-request/[0-9]+'
     paths:
       - 'rest-api/**'
       - '.github/workflows/rest-*.yml'
