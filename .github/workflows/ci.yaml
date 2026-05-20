@@ -44,11 +44,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Detect non-rest changes
         id: non-rest-changes
+        if: startsWith(github.ref, 'refs/heads/pull-request/')
         uses: dorny/paths-filter@v3
         with:
+          base: main
           predicate-quantifier: every
           filters: |
             non_rest:
@@ -1425,3 +1429,39 @@ jobs:
       notify-on-failure: true
     secrets:
       slack-bot-token: ${{ secrets.CDS_SLACK_BOT_OAUTH_TOKEN }}
+
+  # ============================================================================
+  # AGGREGATOR — single required check for branch protection
+  # ============================================================================
+  # Fails iff any leaf job's result is `failure` or `cancelled`.
+  # `skipped` counts as pass — that's how rest-only PRs unblock when the
+  # `changes` gate intentionally skips the core pipeline.
+  # Scope: 1:1 with the existing ruleset's required checks. Wrapping them in
+  # a single context lets us require ONE name in branch protection and avoid
+  # the "Expected — Waiting for status" failure mode if any of those jobs is
+  # ever renamed or workflow-level-filtered away.
+  carbide-ci-pass:
+    name: carbide-ci-pass
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - build-release-container-x86_64
+      - build-release-container-aarch64
+      - security-secret-scan
+      - lint-police
+    steps:
+      - name: Decide pass/fail
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if echo "$NEEDS_JSON" | jq -e '
+            to_entries
+            | map(select(.value.result == "failure" or .value.result == "cancelled"))
+            | length > 0
+          ' >/dev/null; then
+            echo "::error::One or more required jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "All required jobs OK (success or skipped)"

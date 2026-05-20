@@ -29,14 +29,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Detect rest-api changes
         id: filter
+        if: startsWith(github.ref, 'refs/heads/pull-request/')
         uses: dorny/paths-filter@v3
         with:
+          base: main
           filters: |
             rest_api:
-              - 'VERSION'
               - 'rest-api/**'
               - '.github/workflows/rest-*.yml'
 
@@ -44,12 +47,17 @@ jobs:
         id: gate
         env:
           REF: ${{ github.ref }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || '' }}
           REST_API_CHANGED: ${{ steps.filter.outputs.rest_api }}
         run: |
           run_rest_ci=true
 
           if [[ "${REF}" =~ ^refs/heads/pull-request/[0-9]+$ ]]; then
-            run_rest_ci="${REST_API_CHANGED}"
+            run_rest_ci="${REST_API_CHANGED:-false}"
+          fi
+
+          if [[ "${COMMIT_MESSAGE}" =~ ci-run-complete-pipeline ]]; then
+            run_rest_ci=true
           fi
 
           echo "run_rest_ci=${run_rest_ci}" >> "$GITHUB_OUTPUT"
@@ -79,7 +87,7 @@ jobs:
     uses: ./.github/workflows/rest-build-binaries.yml
 
   security-secret-scan:
-    name: Secret Scan with TruffleHog
+    name: REST Secret Scan with TruffleHog
     needs: prepare
     runs-on: linux-amd64-cpu4
     timeout-minutes: 30
@@ -134,3 +142,38 @@ jobs:
       app_version: ${{ needs.prepare.outputs.semantic_version }}
     secrets:
       NVCR_STG_TOKEN: ${{ secrets.NVCR_TOKEN }}
+
+  # ============================================================================
+  # AGGREGATOR — single required check for branch protection
+  # ============================================================================
+  # Fails iff any leaf job's result is `failure` or `cancelled`.
+  # `skipped` counts as pass — that's how core-only PRs unblock when the
+  # `changes` gate intentionally skips the REST pipeline.
+  # Scope: mirrors core's 4-check coverage — lint, security, container build,
+  # and helm packaging. Tighten later by adding prepare / build-binaries /
+  # changes if regressions appear.
+  rest-ci-pass:
+    name: rest-ci-pass
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - lint-and-test
+      - security-secret-scan
+      - build-and-push
+      - helm
+    steps:
+      - name: Decide pass/fail
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if echo "$NEEDS_JSON" | jq -e '
+            to_entries
+            | map(select(.value.result == "failure" or .value.result == "cancelled"))
+            | length > 0
+          ' >/dev/null; then
+            echo "::error::One or more required jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "All required jobs OK (success or skipped)"
