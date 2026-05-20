@@ -23,6 +23,7 @@ on:
       - release/*
       - "pull-request/[0-9]+"
     tags:
+      - "v[0-9]*.[0-9]*.[0-9]*"
       - "v[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]*"
       - "v[0-9].[0-9].[0-9]-rc[0-9]*"
 
@@ -35,11 +36,54 @@ env:
 
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run_core_ci: ${{ steps.gate.outputs.run_core_ci }}
+      non_rest_changed: ${{ steps.non-rest-changes.outputs.non_rest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect non-rest changes
+        id: non-rest-changes
+        uses: dorny/paths-filter@v3
+        with:
+          predicate-quantifier: every
+          filters: |
+            non_rest:
+              - '**'
+              - '!rest-api/**'
+              - '!.github/workflows/rest-*.yml'
+
+      - name: Decide whether Core CI should run
+        id: gate
+        env:
+          REF: ${{ github.ref }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || '' }}
+          NON_REST_CHANGED: ${{ steps.non-rest-changes.outputs.non_rest }}
+        run: |
+          run_core_ci=true
+
+          if [[ "${REF}" =~ ^refs/heads/pull-request/[0-9]+$ ]]; then
+            run_core_ci="${NON_REST_CHANGED}"
+          fi
+
+          if [[ "${COMMIT_MESSAGE}" =~ ci-run-complete-pipeline ]]; then
+            run_core_ci=true
+          fi
+
+          echo "run_core_ci=${run_core_ci}" >> "$GITHUB_OUTPUT"
+          echo "Core CI gate: ${run_core_ci}"
+
   # ============================================================================
   # PREPARE STAGE
   # ============================================================================
 
   prepare:
+    needs:
+      - changes
+    if: ${{ needs.changes.outputs.run_core_ci == 'true' }}
     runs-on: linux-amd64-cpu4
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -106,19 +150,27 @@ jobs:
 
           set -euo pipefail
 
-          # Fetch tags for accurate git describe
-          git fetch --tags --force
           # Get short SHA
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-          echo "Using Git describe to extract version as VERSION and HELM_VERSION"
-          VERSION=$(git describe --tags --first-parent --always --long)
-          # HELM_VERSION strips leading 'v' for strict SemVer and replaces the last '-' with '.'
-          HELM_VERSION_BASE="${VERSION#v}"
-          HELM_VERSION=$(echo "$HELM_VERSION_BASE" | sed 's/\(.*\)-/\1./')
+
+          VERSION_FILE="VERSION"
+          if [ ! -f "$VERSION_FILE" ]; then
+            VERSION_FILE="rest-api/VERSION"
+          fi
+
+          if [ ! -f "$VERSION_FILE" ]; then
+            echo "::error::VERSION file not found"
+            exit 1
+          fi
+
+          SEMANTIC_VERSION=$(grep -v '^#' "$VERSION_FILE" | tr -d '[:space:]')
+          VERSION="${SEMANTIC_VERSION}-${SHORT_SHA}"
+          HELM_VERSION="${VERSION}"
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "helm_version=${HELM_VERSION}" >> $GITHUB_OUTPUT
+          echo "Using ${VERSION_FILE} to calculate VERSION and HELM_VERSION"
           echo "Calculated VERSION: ${VERSION}"
           echo "Calculated HELM_VERSION: ${HELM_VERSION}"
 
@@ -440,7 +492,7 @@ jobs:
   # BUILD STAGE - Release Container
   # ============================================================================
   build-release-container-x86_64:
-    if: ${{ always() && github.event_name != 'schedule' }}
+    if: ${{ always() && github.event_name != 'schedule' && needs.prepare.result == 'success' }}
     needs:
       - prepare
       - build-container-x86_64
@@ -461,7 +513,7 @@ jobs:
     secrets: inherit
 
   build-release-container-aarch64:
-    if: ${{ always() && github.event_name != 'schedule' }}
+    if: ${{ always() && github.event_name != 'schedule' && needs.prepare.result == 'success' }}
     needs:
       - prepare
       - build-container-aarch64
@@ -488,7 +540,7 @@ jobs:
     needs:
       - prepare
       - build-artifacts-container-x86_64
-    if: ${{ always() && github.event_name != 'schedule' }}
+    if: ${{ always() && github.event_name != 'schedule' && needs.prepare.result == 'success' }}
     uses: ./.github/workflows/docker-build.yml
     with:
       dockerfile_path: dev/docker/Dockerfile.release-forge-cli
@@ -505,7 +557,7 @@ jobs:
     needs:
       - prepare
       - build-artifacts-container-aarch64
-    if: ${{ always() && github.event_name != 'schedule' }}
+    if: ${{ always() && github.event_name != 'schedule' && needs.prepare.result == 'success' }}
     uses: ./.github/workflows/docker-build.yml
     with:
       dockerfile_path: dev/docker/Dockerfile.release-forge-cli
@@ -1230,8 +1282,9 @@ jobs:
 
   build-summary:
     runs-on: linux-amd64-cpu4
-    if: ${{ always() && github.event_name != 'schedule' }}
+    if: ${{ always() && github.event_name != 'schedule' && needs.prepare.result == 'success' }}
     needs:
+      - prepare
       - build-container-x86_64
       - build-container-aarch64
       - build-runtime-container-x86_64
