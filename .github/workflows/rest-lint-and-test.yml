@@ -213,6 +213,16 @@ jobs:
           - site-workflow
           - workflow
 
+    env:
+      # db/pkg/util/testing.go uses 'postgres' hostname when CI=true (GitLab convention); force localhost.
+      CI: "false"
+      DB_NAME: nicotest
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: 30432
+      CGO_ENABLED: 1
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
