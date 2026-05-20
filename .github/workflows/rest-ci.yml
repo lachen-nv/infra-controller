@@ -7,18 +7,59 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
+      - release/*
       - 'pull-request/[0-9]+'
-    paths:
-      - 'rest-api/**'
-      - '.github/workflows/rest-*.yml'
+    tags:
+      - "v[0-9]*.[0-9]*.[0-9]*"
+      - "v[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]*"
+      - "v[0-9].[0-9].[0-9]-rc[0-9]*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect REST CI Gate
+    runs-on: ubuntu-latest
+    outputs:
+      run_rest_ci: ${{ steps.gate.outputs.run_rest_ci }}
+      rest_api_changed: ${{ steps.filter.outputs.rest_api }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect rest-api changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            rest_api:
+              - 'VERSION'
+              - 'rest-api/**'
+              - '.github/workflows/rest-*.yml'
+
+      - name: Decide whether REST CI should run
+        id: gate
+        env:
+          REF: ${{ github.ref }}
+          REST_API_CHANGED: ${{ steps.filter.outputs.rest_api }}
+        run: |
+          run_rest_ci=true
+
+          if [[ "${REF}" =~ ^refs/heads/pull-request/[0-9]+$ ]]; then
+            run_rest_ci="${REST_API_CHANGED}"
+          fi
+
+          echo "run_rest_ci=${run_rest_ci}" >> "$GITHUB_OUTPUT"
+          echo "REST CI gate: ${run_rest_ci}"
+
   prepare:
     name: Prepare Build Info
+    needs:
+      - changes
+    if: ${{ needs.changes.outputs.run_rest_ci == 'true' }}
     uses: ./.github/workflows/rest-prepare-build-info.yml
     with:
       runner: ubuntu-latest
@@ -77,7 +118,7 @@ jobs:
       target_registry: ${{ needs.prepare.outputs.target_registry }}
       branch_name: ${{ needs.prepare.outputs.branch_name }}
       is_main_branch: ${{ needs.prepare.outputs.is_main_branch }}
-      push_enabled: false
+      push_enabled: ${{ github.event_name != 'workflow_dispatch' && !contains(github.ref, 'pull-request/') }}
       release_tag: ${{ needs.prepare.outputs.release_tag }}
     secrets:
       NVCR_USERNAME: ${{ secrets.NVCR_USERNAME }}
