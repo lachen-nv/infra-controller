@@ -1388,7 +1388,7 @@ jobs:
     uses: ./.github/workflows/notify-build-status.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
-      workflow-name: "Carbide Core CI"
+      workflow-name: "NICo Core CI"
       channel-id: C0A0TSKJKSB # #dsx-carbide-feed
       needs-context: ${{ toJson(needs) }}
       notify-on-success: true
