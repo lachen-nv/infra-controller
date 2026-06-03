@@ -6,8 +6,8 @@ Helm charts for deploying the NICo REST API platform services.
 
 | Chart | Path | Description |
 |-------|------|-------------|
-| `nico-rest` | `charts/nico-rest/` | Umbrella chart (api + workflow + site-manager + db) |
-| `nico-rest-site-agent` | `charts/nico-rest-site-agent/` | Site agent (deployed independently per-site) |
+| `nico-rest` | `nico-rest/` | Umbrella chart (api + workflow + site-manager + db) |
+| `nico-rest-site-agent` | `nico-rest-site-agent/` | Site agent (deployed independently per-site) |
 
 ### Umbrella Sub-Charts
 
@@ -41,7 +41,7 @@ The API requires exactly **one** authentication method. Keycloak and JWT issuers
 ### Option A: JWT Issuers (any OpenID Connect provider)
 
 ```bash
-helm upgrade --install nico-rest charts/nico-rest/ \
+helm upgrade --install nico-rest nico-rest/ \
   --namespace $NS --create-namespace \
   --set global.image.repository=$REPO \
   --set global.image.tag=$TAG \
@@ -65,7 +65,7 @@ See [auth documentation](../auth/README.md) for full issuer configuration option
 ### Option B: Keycloak
 
 ```bash
-helm upgrade --install nico-rest charts/nico-rest/ \
+helm upgrade --install nico-rest nico-rest/ \
   --namespace $NS --create-namespace \
   --set global.image.repository=$REPO \
   --set global.image.tag=$TAG \
@@ -102,7 +102,7 @@ REPO=nvcr.io/0837451325059433/carbide-dev
 TAG=latest
 NS=nico-rest
 
-helm upgrade --install nico-rest charts/nico-rest/ \
+helm upgrade --install nico-rest nico-rest/ \
   --namespace $NS --create-namespace \
   --set global.image.repository=$REPO \
   --set global.image.tag=$TAG \
@@ -115,7 +115,7 @@ Site agent requires a registered site (UUID + OTP). The chart must be installed 
 
 ```bash
 # 1. Install chart
-helm upgrade --install nico-rest-site-agent charts/nico-rest-site-agent/ \
+helm upgrade --install nico-rest-site-agent nico-rest-site-agent/ \
   --namespace $NS \
   --set global.image.repository=$REPO \
   --set global.image.tag=$TAG || true
