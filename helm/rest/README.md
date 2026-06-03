@@ -60,7 +60,7 @@ nico-rest-api:
         issuer: "my-idp.example.com"
 ```
 
-See [auth documentation](../auth/README.md) for full issuer configuration options.
+See [auth documentation](../../rest-api/auth/README.md) for full issuer configuration options.
 
 ### Option B: Keycloak
 
@@ -121,7 +121,7 @@ helm upgrade --install nico-rest-site-agent nico-rest-site-agent/ \
   --set global.image.tag=$TAG || true
 
 # 2. Bootstrap site registration (creates site via API, patches ConfigMap/Secret)
-./scripts/setup-local.sh site-agent
+../../rest-api/scripts/setup-local.sh site-agent
 
 # 3. Site agent will stabilize after bootstrap
 kubectl -n $NS rollout status statefulset/nico-rest-site-agent --timeout=120s
