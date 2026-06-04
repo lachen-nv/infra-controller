@@ -15,16 +15,18 @@
  * limitations under the License.
  */
 
+pub mod args;
+pub mod cmd;
+
+pub use args::Args;
+
+use crate::cfg::run::Run;
+use crate::cfg::runtime::RuntimeContext;
 use crate::errors::CarbideCliResult;
-use crate::rpc::ApiClient;
 
-pub async fn find(api_client: &ApiClient) -> CarbideCliResult<()> {
-    // construct a message to carbide api and print the result
-    let machines = api_client.0.find_machine_ids_under_attestation().await?;
-
-    for i in 0..machines.machine_ids.len() {
-        println!("{}", machines.machine_ids[i]);
+impl Run for Args {
+    async fn run(self, ctx: &mut RuntimeContext) -> CarbideCliResult<()> {
+        cmd::force_delete(self, &ctx.api_client).await?;
+        Ok(())
     }
-
-    Ok(())
 }

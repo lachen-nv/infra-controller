@@ -15,15 +15,12 @@
  * limitations under the License.
  */
 
-pub mod args;
-pub mod cmd;
-
-use crate::cfg::run::Run;
-use crate::cfg::runtime::RuntimeContext;
-use crate::errors::CarbideCliResult;
-
-impl Run for args::Args {
-    async fn run(self, ctx: &mut RuntimeContext) -> CarbideCliResult<()> {
-        cmd::find(&ctx.api_client).await
-    }
-}
+pub mod artifact;
+pub mod client;
+pub mod config;
+pub mod ctx;
+pub mod error;
+pub mod partitions;
+pub mod rack;
+pub mod scenario;
+pub mod validation;
