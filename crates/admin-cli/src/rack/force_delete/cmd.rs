@@ -15,7 +15,20 @@
  * limitations under the License.
  */
 
-use clap::Parser;
+use rpc::forge::AdminForceDeleteRackRequest;
 
-#[derive(Parser, Debug)]
-pub struct Args {}
+use super::args::Args;
+use crate::rpc::ApiClient;
+
+pub async fn force_delete(data: Args, api_client: &ApiClient) -> color_eyre::Result<()> {
+    let response = api_client
+        .0
+        .admin_force_delete_rack(AdminForceDeleteRackRequest {
+            rack_id: Some(data.rack_id),
+        })
+        .await?;
+
+    println!("Rack {} force deleted successfully.", response.rack_id);
+
+    Ok(())
+}
