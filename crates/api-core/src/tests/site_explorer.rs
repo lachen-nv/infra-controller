@@ -551,6 +551,7 @@ async fn test_site_explorer_main(pool: PgPool) -> Result<(), Box<dyn std::error:
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             }),
         ),
     ]);
@@ -1189,6 +1190,7 @@ async fn test_site_explorer_audit_exploration_results(
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             },
         ),
         (
@@ -1219,6 +1221,7 @@ async fn test_site_explorer_audit_exploration_results(
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             },
         ),
         (
@@ -1244,6 +1247,7 @@ async fn test_site_explorer_audit_exploration_results(
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             },
         ),
         (
@@ -1273,6 +1277,7 @@ async fn test_site_explorer_audit_exploration_results(
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             },
         ),
         (
@@ -3027,6 +3032,7 @@ async fn test_expected_machine_device_type_metrics(
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             }),
         ),
         (
@@ -3052,6 +3058,7 @@ async fn test_expected_machine_device_type_metrics(
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             }),
         ),
         (
@@ -3077,6 +3084,7 @@ async fn test_expected_machine_device_type_metrics(
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             }),
         ),
     ]);
@@ -3209,6 +3217,7 @@ async fn test_site_explorer_power_shelf_discovery(
             physical_slot_number: None,
             revision_id: None,
             topology_id: None,
+            remediation_error: None,
         }),
     );
 
@@ -3345,6 +3354,7 @@ async fn test_site_explorer_switch_discovery(
             physical_slot_number: None,
             revision_id: None,
             topology_id: None,
+            remediation_error: None,
         }),
     );
 
@@ -3472,6 +3482,7 @@ async fn test_site_explorer_power_shelf_with_expected_config(
             physical_slot_number: None,
             revision_id: None,
             topology_id: None,
+            remediation_error: None,
         }),
     );
 
@@ -3587,6 +3598,7 @@ async fn test_site_explorer_power_shelf_creation_limit(
                 physical_slot_number: None,
                 revision_id: None,
                 topology_id: None,
+                remediation_error: None,
             }),
         );
     }
@@ -3701,6 +3713,7 @@ async fn test_site_explorer_power_shelf_disabled(
             physical_slot_number: None,
             revision_id: None,
             topology_id: None,
+            remediation_error: None,
         }),
     );
 
@@ -3910,6 +3923,7 @@ async fn test_site_explorer_creates_power_shelf(
         physical_slot_number: None,
         revision_id: None,
         topology_id: None,
+        remediation_error: None,
     };
 
     let explored_endpoint = ExploredEndpoint {
@@ -4088,6 +4102,7 @@ async fn test_power_shelf_state_history(pool: PgPool) -> Result<(), Box<dyn std:
         physical_slot_number: None,
         revision_id: None,
         topology_id: None,
+        remediation_error: None,
     };
 
     let explored_endpoint = ExploredEndpoint {
@@ -4287,6 +4302,7 @@ async fn test_power_shelf_state_history_multiple(
         physical_slot_number: None,
         revision_id: None,
         topology_id: None,
+        remediation_error: None,
     };
 
     let exploration_report2 = EndpointExplorationReport {
@@ -4316,6 +4332,7 @@ async fn test_power_shelf_state_history_multiple(
         physical_slot_number: None,
         revision_id: None,
         topology_id: None,
+        remediation_error: None,
     };
 
     let explored_endpoint1 = ExploredEndpoint {
@@ -4550,6 +4567,7 @@ async fn test_power_shelf_state_history_error_handling(
         physical_slot_number: None,
         revision_id: None,
         topology_id: None,
+        remediation_error: None,
     };
 
     let explored_endpoint = ExploredEndpoint {
@@ -4739,6 +4757,7 @@ async fn test_site_explorer_power_shelf_discovery_with_static_ip(
             physical_slot_number: None,
             revision_id: None,
             topology_id: None,
+            remediation_error: None,
         }),
     );
 
