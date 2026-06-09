@@ -276,6 +276,10 @@ pub struct CarbideConfig {
     #[serde(default)]
     pub network_segment_state_controller: NetworkSegmentStateControllerConfig,
 
+    /// VpcPrefixStateController related configuration parameter
+    #[serde(default)]
+    pub vpc_prefix_state_controller: VpcPrefixStateControllerConfig,
+
     /// IbPartitionStateController related configuration parameter
     #[serde(default)]
     pub ib_partition_state_controller: IbPartitionStateControllerConfig,
@@ -673,6 +677,32 @@ pub struct CarbideConfig {
     /// per page to the browser.
     #[serde(default)]
     pub log_history: LogHistoryConfig,
+
+    #[serde(default)]
+    pub tracing: TracingConfig,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct TracingConfig {
+    /// Whether to enable OTLP tracing. Default: false
+    #[serde(default)]
+    pub enabled: bool,
+    /// Whether to allow enabling/disabling tracing at runtime. Default: true
+    #[serde(default = "default_to_true")]
+    pub allow_runtime_changes: bool,
+    /// Endpoint to send traces to. Can be overridden by the OTEL_EXPORTER_OTLP_TRACES_ENDPOINT env var.
+    #[serde(default)]
+    pub otlp_endpoint: Option<String>,
+}
+
+impl Default for TracingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            allow_runtime_changes: true,
+            otlp_endpoint: None,
+        }
+    }
 }
 
 impl CarbideConfig {
@@ -1424,6 +1454,43 @@ impl Default for NetworkSegmentStateControllerConfig {
         Self {
             controller: StateControllerConfig::default(),
             network_segment_drain_time: Self::network_segment_drain_time_default(),
+        }
+    }
+}
+
+/// VpcPrefixStateController related config.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct VpcPrefixStateControllerConfig {
+    /// Common state controller configs
+    #[serde(default = "StateControllerConfig::default")]
+    pub controller: StateControllerConfig,
+    /// The time for which VPC prefixes must have 0 referencing network prefixes,
+    /// before they are actually released.
+    /// This should be set to a duration long enough that ensures no pending
+    /// RPC calls might still use the VPC prefix to avoid race conditions.
+    #[serde(
+        default = "VpcPrefixStateControllerConfig::vpc_prefix_drain_time_default",
+        deserialize_with = "deserialize_duration_chrono",
+        serialize_with = "as_duration"
+    )]
+    pub vpc_prefix_drain_time: chrono::Duration,
+}
+
+impl VpcPrefixStateControllerConfig {
+    /// Returns the default VPC prefix drain time.
+    pub fn vpc_prefix_drain_time_default() -> Duration {
+        // Match the network segment drain default for hierarchical cleanup.
+        Duration::minutes(5)
+    }
+}
+
+impl Default for VpcPrefixStateControllerConfig {
+    /// Builds the default VPC prefix state controller configuration.
+    fn default() -> Self {
+        // Use framework defaults plus the VPC prefix drain grace period.
+        Self {
+            controller: StateControllerConfig::default(),
+            vpc_prefix_drain_time: Self::vpc_prefix_drain_time_default(),
         }
     }
 }
@@ -2523,6 +2590,10 @@ mod tests {
             NetworkSegmentStateControllerConfig::default()
         );
         assert_eq!(
+            config.vpc_prefix_state_controller,
+            VpcPrefixStateControllerConfig::default()
+        );
+        assert_eq!(
             config.ib_partition_state_controller,
             IbPartitionStateControllerConfig::default()
         );
@@ -2655,6 +2726,21 @@ mod tests {
                     iteration_time: std::time::Duration::from_secs(18 * 60),
                     max_object_handling_time: std::time::Duration::from_secs(188),
                     max_concurrency: 1888,
+                    processor_dispatch_interval: std::time::Duration::from_secs(2),
+                    processor_log_interval: std::time::Duration::from_secs(60),
+                    metric_emission_interval: std::time::Duration::from_secs(60),
+                    metric_hold_time: std::time::Duration::from_secs(5 * 60),
+                },
+            }
+        );
+        assert_eq!(
+            config.vpc_prefix_state_controller,
+            VpcPrefixStateControllerConfig {
+                vpc_prefix_drain_time: Duration::seconds(46),
+                controller: StateControllerConfig {
+                    iteration_time: std::time::Duration::from_secs(19 * 60),
+                    max_object_handling_time: std::time::Duration::from_secs(199),
+                    max_concurrency: 1999,
                     processor_dispatch_interval: std::time::Duration::from_secs(2),
                     processor_log_interval: std::time::Duration::from_secs(60),
                     metric_emission_interval: std::time::Duration::from_secs(60),
@@ -2842,6 +2928,21 @@ mod tests {
                     iteration_time: std::time::Duration::from_secs(8 * 60),
                     max_object_handling_time: std::time::Duration::from_secs(88),
                     max_concurrency: 888,
+                    processor_dispatch_interval: std::time::Duration::from_secs(2),
+                    processor_log_interval: std::time::Duration::from_secs(60),
+                    metric_emission_interval: std::time::Duration::from_secs(60),
+                    metric_hold_time: std::time::Duration::from_secs(5 * 60),
+                },
+            }
+        );
+        assert_eq!(
+            config.vpc_prefix_state_controller,
+            VpcPrefixStateControllerConfig {
+                vpc_prefix_drain_time: Duration::seconds(43),
+                controller: StateControllerConfig {
+                    iteration_time: std::time::Duration::from_secs(6 * 60),
+                    max_object_handling_time: std::time::Duration::from_secs(66),
+                    max_concurrency: 666,
                     processor_dispatch_interval: std::time::Duration::from_secs(2),
                     processor_log_interval: std::time::Duration::from_secs(60),
                     metric_emission_interval: std::time::Duration::from_secs(60),
@@ -3161,6 +3262,21 @@ mod tests {
             }
         );
         assert_eq!(
+            config.vpc_prefix_state_controller,
+            VpcPrefixStateControllerConfig {
+                vpc_prefix_drain_time: Duration::seconds(46),
+                controller: StateControllerConfig {
+                    iteration_time: std::time::Duration::from_secs(19 * 60),
+                    max_object_handling_time: std::time::Duration::from_secs(199),
+                    max_concurrency: 1999,
+                    processor_dispatch_interval: std::time::Duration::from_secs(2),
+                    processor_log_interval: std::time::Duration::from_secs(60),
+                    metric_emission_interval: std::time::Duration::from_secs(60),
+                    metric_hold_time: std::time::Duration::from_secs(5 * 60),
+                },
+            }
+        );
+        assert_eq!(
             config.ib_partition_state_controller,
             IbPartitionStateControllerConfig {
                 controller: StateControllerConfig {
@@ -3308,6 +3424,59 @@ mod tests {
             ))
             .extract()
             .expect("legacy force_dpu_nic_mode in TOML must still parse");
+    }
+
+    #[test]
+    fn tracing_config_defaults_when_omitted() {
+        let config: CarbideConfig = Figment::new()
+            .merge(Toml::file(format!("{TEST_DATA_DIR}/min_config.toml")))
+            .extract()
+            .unwrap();
+
+        assert!(!config.tracing.enabled);
+        assert!(config.tracing.allow_runtime_changes);
+        assert_eq!(config.tracing.otlp_endpoint, None);
+    }
+
+    #[test]
+    fn tracing_config_deserializes_from_toml() {
+        let toml = r#"
+[tracing]
+enabled = true
+allow_runtime_changes = false
+otlp_endpoint = "http://otel-collector.observability.svc.cluster.local:4317"
+"#;
+
+        let config: CarbideConfig = Figment::new()
+            .merge(Toml::file(format!("{TEST_DATA_DIR}/min_config.toml")))
+            .merge(Toml::string(toml))
+            .extract()
+            .unwrap();
+
+        assert!(config.tracing.enabled);
+        assert!(!config.tracing.allow_runtime_changes);
+        assert_eq!(
+            config.tracing.otlp_endpoint.as_deref(),
+            Some("http://otel-collector.observability.svc.cluster.local:4317")
+        );
+    }
+
+    #[test]
+    fn tracing_config_defaults_runtime_changes_when_section_is_partial() {
+        let toml = r#"
+[tracing]
+enabled = true
+"#;
+
+        let config: CarbideConfig = Figment::new()
+            .merge(Toml::file(format!("{TEST_DATA_DIR}/min_config.toml")))
+            .merge(Toml::string(toml))
+            .extract()
+            .unwrap();
+
+        assert!(config.tracing.enabled);
+        assert!(config.tracing.allow_runtime_changes);
+        assert_eq!(config.tracing.otlp_endpoint, None);
     }
 
     #[test]
